@@ -20,7 +20,7 @@ function setInterpolationImage(i) {
 }
 
 /**
- * 视频对比滑块组件
+ * 视频对比滑块组件（简化版 - 无控制栏）
  * Video Comparison Slider Component
  */
 class VideoComparisonSlider {
@@ -31,31 +31,10 @@ class VideoComparisonSlider {
     this.videoLeftWrapper = container.querySelector('.video-left');
     this.handle = container.querySelector('.video-comparison-handle');
     
-    // 控制栏元素 - 查找最近的 .video-comparison-controls
-    let controlsContainer = container.nextElementSibling;
-    // 确保找到的是控制栏
-    while (controlsContainer && !controlsContainer.classList.contains('video-comparison-controls')) {
-      controlsContainer = controlsContainer.nextElementSibling;
-    }
-    this.progressSlider = controlsContainer ? controlsContainer.querySelector('.video-progress-slider') : null;
-    this.timeDisplay = controlsContainer ? controlsContainer.querySelector('.time-display') : null;
-    this.controlsContainer = controlsContainer;
-    this.isSeeking = false; // 用户是否正在拖动进度条
-    
-    console.log('VideoComparisonSlider initialized:', {
-      container: !!this.container,
-      videoLeft: !!this.videoLeft,
-      videoRight: !!this.videoRight,
-      handle: !!this.handle,
-      controlsContainer: !!this.controlsContainer,
-      progressSlider: !!this.progressSlider
-    });
-    
     this.isDragging = false;
-    this.position = 50; // 初始位置50%
-    this.isPlaying = false;
-    this.videosReady = 0; // 追踪已加载的视频数量
-    this.masterDuration = 0; // 主时长（较长的视频）
+    this.position = 50;
+    this.videosReady = 0;
+    this.masterDuration = 0;
     this.leftLoaded = false;
     this.rightLoaded = false;
     this.initialized = false;
@@ -66,14 +45,6 @@ class VideoComparisonSlider {
   init() {
     this.bindEvents();
     this.updatePosition(50);
-    
-    // 添加错误处理 - 如果视频加载失败
-    this.videoLeft.addEventListener('error', (e) => {
-      console.error('Left video failed to load:', e);
-    });
-    this.videoRight.addEventListener('error', (e) => {
-      console.error('Right video failed to load:', e);
-    });
     
     // 如果视频已经加载完成（缓存），手动触发
     if (this.videoLeft.readyState >= 1) {
@@ -102,59 +73,16 @@ class VideoComparisonSlider {
       }
     });
     
-    // 播放控制按钮
-    if (this.controlsContainer) {
-      const playBtn = this.controlsContainer.querySelector('.btn-play');
-      const pauseBtn = this.controlsContainer.querySelector('.btn-pause');
-      const restartBtn = this.controlsContainer.querySelector('.btn-restart');
-      
-      if (playBtn) {
-        playBtn.addEventListener('click', () => this.play());
-      }
-      if (pauseBtn) {
-        pauseBtn.addEventListener('click', () => this.pause());
-      }
-      if (restartBtn) {
-        restartBtn.addEventListener('click', () => this.restart());
-      }
-      
-      // 进度条滑动
-      if (this.progressSlider) {
-        // 开始拖动
-        this.progressSlider.addEventListener('mousedown', () => {
-          this.isSeeking = true;
-        });
-        this.progressSlider.addEventListener('touchstart', () => {
-          this.isSeeking = true;
-        });
-        
-        // 拖动中
-        this.progressSlider.addEventListener('input', (e) => {
-          this.seekToValue(parseFloat(e.target.value));
-        });
-        
-        // 结束拖动
-        this.progressSlider.addEventListener('mouseup', () => {
-          this.isSeeking = false;
-        });
-        this.progressSlider.addEventListener('touchend', () => {
-          this.isSeeking = false;
-        });
-        this.progressSlider.addEventListener('change', () => {
-          this.isSeeking = false;
-        });
-      }
-    }
-    
-    // 视频时间更新 - 使用主视频（左侧）
-    this.videoLeft.addEventListener('timeupdate', () => this.updateProgress());
-    
-    // 视频加载完成 - 两个视频都需要加载完才能计算同步
+    // 视频加载完成
     this.videoLeft.addEventListener('loadedmetadata', () => this.onVideoLoaded('left'));
     this.videoRight.addEventListener('loadedmetadata', () => this.onVideoLoaded('right'));
     
     // 循环播放处理
-    this.videoLeft.addEventListener('ended', () => this.onVideoEnded());
+    this.videoLeft.addEventListener('ended', () => this.restart());
+    this.videoRight.addEventListener('ended', () => {
+      this.videoRight.currentTime = 0;
+      this.videoRight.play();
+    });
   }
   
   startDrag(e) {
@@ -171,9 +99,7 @@ class VideoComparisonSlider {
     const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     let position = ((clientX - rect.left) / rect.width) * 100;
     
-    // 限制范围
     position = Math.max(5, Math.min(95, position));
-    
     this.updatePosition(position);
   }
   
@@ -191,15 +117,11 @@ class VideoComparisonSlider {
   
   updatePosition(position) {
     this.position = position;
-    // 更新滑块位置
     this.handle.style.left = position + '%';
-    // 更新左侧视频的裁剪区域
     this.videoLeftWrapper.style.clipPath = `inset(0 ${100 - position}% 0 0)`;
   }
   
-  // 视频加载完成后同步时长
   onVideoLoaded(which) {
-    // 防止重复计数
     if (which === 'left' && this.leftLoaded) return;
     if (which === 'right' && this.rightLoaded) return;
     
@@ -207,116 +129,44 @@ class VideoComparisonSlider {
     if (which === 'right') this.rightLoaded = true;
     
     this.videosReady++;
-    console.log(`Video ${which} loaded. Duration: ${which === 'left' ? this.videoLeft.duration : this.videoRight.duration}s`);
     
-    // 两个视频都加载完成后，计算并同步播放速率
     if (this.videosReady >= 2 && !this.initialized) {
       this.initialized = true;
       this.syncVideoDurations();
-      this.updateProgress();
-      // 自动开始播放
       this.play();
     }
   }
   
-  // 同步视频时长 - 让短视频拉伸到长视频的时长
   syncVideoDurations() {
     const leftDuration = this.videoLeft.duration;
     const rightDuration = this.videoRight.duration;
     
-    // 取较长的作为主时长
     this.masterDuration = Math.max(leftDuration, rightDuration);
     
-    // 计算播放速率
-    // 如果左边视频短，加快右边的速率使其与左边同步
-    // 如果右边视频短，加快左边的速率使其与右边同步
-    // 实际上我们让短的视频慢下来以匹配长的
-    
     if (leftDuration < rightDuration) {
-      // 左边短，需要减慢左边的播放速度
       this.videoLeft.playbackRate = leftDuration / rightDuration;
       this.videoRight.playbackRate = 1;
-      console.log(`Left video is shorter. Left playbackRate: ${this.videoLeft.playbackRate}`);
     } else if (rightDuration < leftDuration) {
-      // 右边短，需要减慢右边的播放速度
       this.videoLeft.playbackRate = 1;
       this.videoRight.playbackRate = rightDuration / leftDuration;
-      console.log(`Right video is shorter. Right playbackRate: ${this.videoRight.playbackRate}`);
     } else {
-      // 时长相同
       this.videoLeft.playbackRate = 1;
       this.videoRight.playbackRate = 1;
     }
-    
-    console.log(`Master duration: ${this.masterDuration}s`);
   }
   
   play() {
-    // 同步当前时间并播放
     const normalizedTime = this.videoLeft.currentTime / this.videoLeft.playbackRate;
     this.videoRight.currentTime = normalizedTime * this.videoRight.playbackRate;
     
     this.videoLeft.play();
     this.videoRight.play();
-    this.isPlaying = true;
-  }
-  
-  pause() {
-    this.videoLeft.pause();
-    this.videoRight.pause();
-    this.isPlaying = false;
   }
   
   restart() {
     this.videoLeft.currentTime = 0;
     this.videoRight.currentTime = 0;
     this.play();
-  }
-  
-  // 根据滑动条的值（0-100）跳转
-  seekToValue(value) {
-    const time = (value / 100) * this.masterDuration;
-    
-    // 根据各自的播放速率计算实际时间
-    this.videoLeft.currentTime = time * this.videoLeft.playbackRate;
-    this.videoRight.currentTime = time * this.videoRight.playbackRate;
-    
-    // 立即更新时间显示
-    if (this.timeDisplay && this.masterDuration) {
-      const current = this.formatTime(time);
-      const total = this.formatTime(this.masterDuration);
-      this.timeDisplay.textContent = `${current} / ${total}`;
-    }
-  }
-  
-  updateProgress() {
-    // 如果用户正在拖动，不更新滑动条位置
-    if (this.isSeeking) return;
-    
-    // 使用归一化的时间来计算进度（基于主时长）
-    const normalizedTime = this.videoLeft.currentTime / this.videoLeft.playbackRate;
-    
-    if (this.progressSlider && this.masterDuration) {
-      const progress = (normalizedTime / this.masterDuration) * 100;
-      this.progressSlider.value = progress;
-    }
-    
-    if (this.timeDisplay && this.masterDuration) {
-      const current = this.formatTime(normalizedTime);
-      const total = this.formatTime(this.masterDuration);
-      this.timeDisplay.textContent = `${current} / ${total}`;
-    }
-  }
-  
-  formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-  
-  onVideoEnded() {
-    // 循环播放
-    this.restart();
   }
 }
 
