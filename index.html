@@ -345,6 +345,74 @@
     </div>
     <!--/ Matting. -->
 
+    <!-- Video Comparison. -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3">Video Comparison</h2>
+        <div class="content has-text-justified">
+          <p>
+            使用下方的滑动条来对比两段视频。拖动中间的滑块可以看到左右视频的不同区域。
+            向左拖动可以看到更多右侧视频内容，向右拖动可以看到更多左侧视频内容。
+          </p>
+        </div>
+        
+        <!-- 视频对比滑块组件 -->
+        <div class="video-comparison-container">
+          <div class="video-comparison-wrapper">
+            <!-- 右侧视频 (底层) -->
+            <div class="video-comparison-item video-right">
+              <video muted loop playsinline>
+                <source src="./static/videos/dollyzoom-stacked.mp4" type="video/mp4">
+              </video>
+            </div>
+            <!-- 左侧视频 (上层，被裁剪) -->
+            <div class="video-comparison-item video-left">
+              <video muted loop playsinline>
+                <source src="./static/videos/matting.mp4" type="video/mp4">
+              </video>
+            </div>
+            <!-- 滑动条手柄 -->
+            <div class="video-comparison-handle">
+              <div class="video-comparison-handle-circle">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                  <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" transform="rotate(180 12 12)"/>
+                </svg>
+              </div>
+            </div>
+            <!-- 标签 -->
+            <div class="video-comparison-label label-left">Original</div>
+            <div class="video-comparison-label label-right">Processed</div>
+          </div>
+        </div>
+        
+        <!-- 视频控制栏 -->
+        <div class="video-comparison-controls">
+          <button class="btn-play" title="播放">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+          <button class="btn-pause" title="暂停">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          </button>
+          <button class="btn-restart" title="重新开始">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+            </svg>
+          </button>
+          <input class="slider is-fullwidth is-large is-info video-progress-slider"
+                 step="0.1" min="0" max="100" value="0" type="range">
+          <span class="time-display">0:00 / 0:00</span>
+        </div>
+        
+        <br/>
+      </div>
+    </div>
+    <!--/ Video Comparison. -->
+
     <!-- Animation. -->
     <div class="columns is-centered">
       <div class="column is-full-width">
