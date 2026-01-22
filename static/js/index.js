@@ -31,18 +31,34 @@ class VideoComparisonSlider {
     this.videoLeftWrapper = container.querySelector('.video-left');
     this.handle = container.querySelector('.video-comparison-handle');
     
-    // 控制栏元素 - 在容器的兄弟元素中查找
-    const controlsContainer = container.nextElementSibling;
+    // 控制栏元素 - 查找最近的 .video-comparison-controls
+    let controlsContainer = container.nextElementSibling;
+    // 确保找到的是控制栏
+    while (controlsContainer && !controlsContainer.classList.contains('video-comparison-controls')) {
+      controlsContainer = controlsContainer.nextElementSibling;
+    }
     this.progressSlider = controlsContainer ? controlsContainer.querySelector('.video-progress-slider') : null;
     this.timeDisplay = controlsContainer ? controlsContainer.querySelector('.time-display') : null;
     this.controlsContainer = controlsContainer;
     this.isSeeking = false; // 用户是否正在拖动进度条
+    
+    console.log('VideoComparisonSlider initialized:', {
+      container: !!this.container,
+      videoLeft: !!this.videoLeft,
+      videoRight: !!this.videoRight,
+      handle: !!this.handle,
+      controlsContainer: !!this.controlsContainer,
+      progressSlider: !!this.progressSlider
+    });
     
     this.isDragging = false;
     this.position = 50; // 初始位置50%
     this.isPlaying = false;
     this.videosReady = 0; // 追踪已加载的视频数量
     this.masterDuration = 0; // 主时长（较长的视频）
+    this.leftLoaded = false;
+    this.rightLoaded = false;
+    this.initialized = false;
     
     this.init();
   }
@@ -50,6 +66,22 @@ class VideoComparisonSlider {
   init() {
     this.bindEvents();
     this.updatePosition(50);
+    
+    // 添加错误处理 - 如果视频加载失败
+    this.videoLeft.addEventListener('error', (e) => {
+      console.error('Left video failed to load:', e);
+    });
+    this.videoRight.addEventListener('error', (e) => {
+      console.error('Right video failed to load:', e);
+    });
+    
+    // 如果视频已经加载完成（缓存），手动触发
+    if (this.videoLeft.readyState >= 1) {
+      this.onVideoLoaded('left');
+    }
+    if (this.videoRight.readyState >= 1) {
+      this.onVideoLoaded('right');
+    }
   }
   
   bindEvents() {
@@ -167,11 +199,19 @@ class VideoComparisonSlider {
   
   // 视频加载完成后同步时长
   onVideoLoaded(which) {
+    // 防止重复计数
+    if (which === 'left' && this.leftLoaded) return;
+    if (which === 'right' && this.rightLoaded) return;
+    
+    if (which === 'left') this.leftLoaded = true;
+    if (which === 'right') this.rightLoaded = true;
+    
     this.videosReady++;
     console.log(`Video ${which} loaded. Duration: ${which === 'left' ? this.videoLeft.duration : this.videoRight.duration}s`);
     
     // 两个视频都加载完成后，计算并同步播放速率
-    if (this.videosReady >= 2) {
+    if (this.videosReady >= 2 && !this.initialized) {
+      this.initialized = true;
       this.syncVideoDurations();
       this.updateProgress();
       // 自动开始播放
@@ -342,7 +382,8 @@ $(document).ready(function() {
     setInterpolationImage(0);
     $('#interpolation-slider').prop('max', NUM_INTERP_FRAMES - 1);
 
-    bulmaSlider.attach();
+    // 只初始化不带 no-bulma-init 类的滑块
+    bulmaSlider.attach('.slider:not(.no-bulma-init)');
 
     // 初始化视频对比滑块
     initVideoComparisonSliders();
